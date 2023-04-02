@@ -1,0 +1,165 @@
+<%
+  Rails.application.routes.draw do
+    root   'everything#index'
+
+    post   '/products',     to: 'everything#index'
+    put    '/products/:id', to: 'everything#index'
+    delete '/products/:id', to: 'everything#index'
+  end
+%>
+
+
+
+<h1 class="my-5 text-center">
+  Everything
+</h1>
+
+<%
+  unless ActiveRecord::Base.connection.table_exists?(:products)
+    ActiveRecord::Migration.create_table :products do |t|
+      t.string :name
+      t.float :price
+
+      t.timestamps
+    end
+  end
+%>
+
+<%
+  product = Class.new(ApplicationRecord) do
+    self.table_name = 'products'
+  end
+%>
+
+<% products = product.all %>
+
+
+
+<h3 class="my-5 text-muted">
+  Products
+</h3>
+
+<div class="p-3 border rounded shadow">
+  <table class="table table-primary rounded table-striped">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Price</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <% products.each do |prod| %>
+        <tr>
+          <td><%= prod['name'] %></td>
+          <td><%= prod['price'] %></td>
+          <td>
+            <form class="edit-form" action="/products/<%= prod['id'] %>" method="post">
+              <input type="hidden" name="_method"        value="put">
+              <input type="hidden" name="id"             value="<%= prod['id'] %>">
+              <input type="text"   name="product[name]"  value="<%= prod['name'] %>"><br>
+              <input type="text"   name="product[price]" value="<%= prod['price'] %>">
+
+              <input type="submit" class="btn btn-sm btn-secondary" value="Update">
+            </form>
+
+            <form class="delete-form" action="/products/<%= prod['id'] %>" method="post">
+              <input type="hidden" name="_method" value="delete">
+              <input type="hidden" name="id"      value="<%= prod['id'] %>">
+
+              <input type="submit" class="btn btn-sm btn-danger" value="Delete">
+            </form>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+
+
+<h3 class="my-5 text-muted">
+  Create Product
+</h3>
+
+<div class="p-3 border rounded shadow col-5">
+  <form id="new-product-form" class="bg-secondary p-3">
+    <div>
+      <label for="name" class="text-white">Name:</label><br>
+      <input type="text" id="name" name="name">
+    </div>
+    <div>
+      <label for="price" class="text-white">Price:</label><br>
+      <input type="text" id="price" name="price">
+    </div>
+
+    <input type="submit" value="Create Product" class="btn btn-sm btn-success my-2">
+  </form>
+</div>
+
+<%
+  if request.post? && params[:name] && params[:price]
+    product.create(name: params[:name], price: params[:price])
+  end
+
+  if request.put? && params[:id] && params[:product]
+    prod = product.find(params[:id])
+    prod.update(name: params[:product][:name], price: params[:product][:price])
+  end
+
+  if request.delete? && params[:id]
+    prod = product.find(params[:id])
+    prod.destroy
+  end
+%>
+
+
+
+<script>
+  document.querySelector('#new-product-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const form = e.target;
+    const data = new FormData(form);
+    const url = window.location.protocol + '//' + window.location.host + '/products';
+    const response = await fetch(url, {
+      method: 'POST',
+      body: data
+    });
+    location.reload;
+  });
+
+
+  document.querySelectorAll('.edit-form').forEach(form => {
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+
+      const data = new FormData(form);
+      const method = form.querySelector('input[name="_method"]').value;
+      const id = form.querySelector('input[name="id"]').value;
+      const url = window.location.protocol + '//' + window.location.host + `/products/${id}`;
+      const response = await fetch(url, {
+        method: method,
+        body: data
+      });
+      location.reload();
+    });
+  });
+
+
+  document.querySelectorAll('.delete-form').forEach(form => {
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+
+      const data = new FormData(form);
+      const id = form.querySelector('input[name="id"]').value;
+      const url = window.location.protocol + '//' + window.location.host + `/products/${id}`;
+      const response = await fetch(url, {
+        method: 'DELETE',
+        body: data
+      });
+      location.reload();
+    });
+  });
+</script>
